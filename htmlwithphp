@@ -1,0 +1,1062 @@
+@extends('layout.main') 
+@section('title','Order') 
+@section('content') 
+@include('layout.adminleftsidebar') 
+@include('layout.admintopbar')
+<!-- Page Inner -->
+<?php $businessdate=Session::get('businessdate'); ?>
+  <?php 
+ // $businessdate['bdate'];
+ // $date_now = date('d-m-Y')."<br>";
+ // $date2 = date('d-m-Y', strtotime($businessdate['bdate']));
+$date_now = strtotime(date('d-m-Y'))."<br>";
+$date2 = strtotime($businessdate['bdate']);
+?>
+<div class="page-inner no-page-title">
+   <div id="main-wrapper">
+      <div class="content-header">
+         <div class="row align-items-center">
+            <div class="col-sm-4">
+               <div class="d-none d-md-block">
+                  <div class="col-12 mb-3">
+                     <div class="row">
+                        <div class="col-md-4 p-1">
+                           <a class="col-md-12 btn btn-rounded btn-info text-white neworderbtn ordertype" data-id="1">Dine In</a>
+                        </div>
+                        <div class="col-md-4 p-1">
+                           <a class="col-md-12 btn btn-rounded btn-info text-white neworderbtn ordertype" data-id="2">Take Away</a>
+                        </div>
+                        <div class="col-md-4 p-1">
+                           <a class="col-md-12 btn btn-rounded btn-info text-white neworderbtn ordertype" data-id="3">Delivery</a>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="col-sm-8">
+               <div class="col-12 mb-3">
+                  <div class="row">
+                     <div class="col-md-3 p-1">
+                        <select class="form-control serachfield newordersearchtype">
+                           <option value="1">Search Products</option>
+                           <option value="2">Search Customer</option>
+                        </select>
+                     </div>
+                     <div class="col-md-5 p-1" id="proddiv" >
+                        <input class="form-control serachfield" type="search" id="bliendproductseach" placeholder="Search Product">
+                     </div>
+                     <div class="col-md-5 p-1" id="custdiv" style="display: none;">
+                        <div class="row">
+                           <div class="col-md-8">
+                              <input class="form-control serachfield" type="search" id="searchautocomplete11" placeholder="Search Customer">
+                           </div>
+                           <div class="col-md-4">
+                               <a class="btn text-white neworderbtn custaddbtn" ><i class="fas fa-plus"></i> New</a>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2 p-1">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn scanaddbtn" ><i class="fas fa-barcode text-white"></i> Scan</a>
+                     </div>
+                     <div class="col-md-2 p-1">
+                        <a href="{{url('/codxadmin/bestselling/')}}" class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn"><i class="fas fa-star text-white"></i> Favorite</a>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+      <div class="row">
+         <input type="hidden" name="_token" id="csrftoken" value="{{ csrf_token() }}">
+         <div class="col-md-12">
+         </div>
+         <div class="col-md-4 p-2" id="cartview">
+            @include('newcart')
+         </div>
+         <div class="col-md-8 p-2" id="producthidediv" >
+            <div class="row">
+               <div class="col-xl-12 col-md-12">
+                  <div class=" p-1 mb-2">
+                     <!--  <h6 style="margin:0;">Categories</h6> -->
+                     <div class="p-2 border-bottom text-white catmaindiv">
+                        @if(count($prcat)>0) @foreach($prcat as $pcat)
+                        <a href="{{url('/codxadmin/orders/'.base64_encode($pcat->id))}}" class=" btn btn-primary text-uppercase mb-0 ml-2 p-2 catitema neworderbtn"> {{$pcat->category_name}}</a> @endforeach @else
+                        <p style="color:#000 !important;"> No Category Yet!!</p>
+                        @endif
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="row">
+               <div class="col-xl-12 col-md-12">
+                  <div class=" p-2 mb-2">
+                     <!--  <h6 style="margin:0;">Categories</h6> -->
+                     <div class="p-1 border-bottom text-white catmaindiv">
+                        @if(count($subcat)>0) @foreach($subcat as $pscat)
+                        <a href="{{url('/codxadmin/orders/'.base64_encode($pscat->parent_category).'/'.base64_encode($pscat->id))}}" class=" btn btn-primary text-uppercase mb-0 ml-2 p-2 catitema neworderbtn"> {{$pscat->category_name}}</a> @endforeach @else
+                        <p style="color:#000 !important;">No Sub Categories Yet!!</p>
+                        @endif
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="row">
+               @if(count($product)>0)
+               <div class="col-md-12">
+                  <div class="row">
+                     <div class="col-xl-12 col-md-12">
+                        <div class="p-3 m-b-30">
+                           <div class="row orderproduct">
+                              @foreach($product as $prodta)
+                              <div class="col-xl-2 col-md-2">
+                                 <div class="card mb-3 text-center crtbtnadd" id="row{{$prodta->pro_code}}" data-product="{{$prodta->pro_code}}" data-pr="{{$prodta->unit_price}}" style="cursor: pointer;">
+                                    <!-- <div class="col-md-12 m-t-10">
+                                       <div class="row">
+                                          <div class="col-md-12 p-0">
+                                             @if(!empty($prodta->product_image))
+                                             <img src="{{url($prodta->product_image)}}" width="100%" height="80px" alt="logo"> @else
+                                             <img src="{{asset('public/assets/images/pricon.png')}}" width="100%" height="80px"> @endif
+                                          </div>
+                                       </div>
+                                    </div> -->
+                                    <div class="card-body cstmcardbody">
+                                       <div class="row">
+                                          <div class="col-md-12 pb-0">
+                                             <p class="m-0" data-price="{{$prodta->unit_price}}"><b>{{number_format($prodta->unit_price,2)}}</b></p>
+                                          </div>
+                                       </div>
+                                       <div class="row productname">
+                                          <div class="col-md-12 pb-0">
+                                             <p class="ml-1 text-muted"><b>{{$prodta->product_name}}</b></p>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                              @endforeach
+                           </div>
+                           <div class="col-lg-12">
+                              <div class="row float-right mt-3">
+                                <div class="col-md-12 ">
+                                  {{ $product->onEachSide(1)->links() }}
+                                </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               @else
+               <div class="col-md-12">
+                  <p> No Product Yet!!</p>
+               </div>
+               @endif
+               <div class="col-md-12 text-right">
+                  @include('layout.footer')
+               </div>
+            </div>
+         </div>
+         <div class="col-md-8 p-2 othersidediv" id="paymenthidediv" style="display: none;">
+            <div class="cardstyle p-1 mb-3">
+               <div class="col-md-12 mb-3 divpay" id="divpay0">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="row">
+                           <div class="col-md-12">
+                              <h3>Cash Payment</h3>
+                              <hr>
+                              <div class="row mt-3 mb-3">
+                                 <div class="col-md-3 text-center">
+                                    <h5>Balance Due</h5>
+                                    <h5 class="ordramtpy" style="color:#0975bb;" id="cashbal">0.00</h5>
+                                 </div>
+                                 <div class="col-md-5 text-center">
+                                    <h5>Amount Tendered</h5>
+                                    <input class="paynumchng text-right" style="color:#000;" id="payrecpp" value="0.00" data-type="1" autocomplete="off" />
+                                 </div>
+                                 <div class="col-md-4 text-center">
+                                    <h5>Change</h5>
+                                    <h5 class="refbal" style="color:#fd0202;" id="cashbalttlpp1">0.00</h5>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-5">
+                              <div class="col-md-12">
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Sub Total</h6></div>
+                                    <div class="col-md-5 text-right" id="cashsttl"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Taxes</h6></div>
+                                    <div class="col-md-5 text-right" id="cashtx"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Discount</h6></div>
+                                    <div class="col-md-5 text-right" id="cashdis"></div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-1 mb-3 text-center">
+                           </div>
+                           <div class="col-md-6 mb-3 text-center">
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="7" data-type="1" style="cursor:pointer;"><h6>7</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="8" data-type="1" style="cursor:pointer;"><h6>8</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="9" data-type="1" style="cursor:pointer;"><h6>9</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="4" data-type="1" style="cursor:pointer;"><h6>4</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="5" data-type="1" style="cursor:pointer;"><h6>5</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="6" data-type="1" style="cursor:pointer;"><h6>6</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="1" data-type="1" style="cursor:pointer;"><h6>1</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="2" data-type="1" style="cursor:pointer;"><h6>2</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="3" data-type="1" style="cursor:pointer;"><h6>3</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="clr" data-type="1" style="cursor:pointer;"><h6>C</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center"  data-value="0" data-type="1" style="cursor:pointer;"><h6>0</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="." data-type="1" style="cursor:pointer;"><h6>.</h6></div>
+                              </div>
+                           </div>
+                           <div class="col-md-12 mt-2">
+                              <div class="row">
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="0"> Cash</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="1"> Credit</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="2"> App Payment</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="3"> Customer</a></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Advance</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Tips</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Rewards</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-5"> Other</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white paymentbtn ppconfirmorder"> Pay</a>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-md-12 mb-3 divpay" id="divpay1" style="display: none;">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="row">
+                           <div class="col-md-12">
+                              <h3>Credit Payment</h3>
+                              <hr>
+                              <div class="row mt-3 mb-3">
+                                 <div class="col-md-3 text-center">
+                                    <h5>Balance Due</h5>
+                                    <h5 class="ordramtpy" style="color:#0975bb;" id="crecashttlpp">0.00</h5>
+                                 </div>
+                                 <div class="col-md-5 text-center">
+                                    <h5>Amount Tendered</h5>
+                                    <input class="paynumchng text-right" style="color:#000;" id="crepayrecpp" value="0.00"/ data-type="2" autocomplete="off">
+                                 </div>
+                                 <div class="col-md-4 text-center">
+                                    <h5>Change</h5>
+                                    <h5 class="refbal" style="color:#fd0202;" id="creditbalttlpp">0.00</h5>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-5">
+                              <div class="col-md-12 mb-3">
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Sub Total</h6></div>
+                                    <div class="col-md-5 text-right" id="creppsubttl"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Taxes</h6></div>
+                                    <div class="col-md-5 text-right" id="crepptax"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Discount</h6></div>
+                                    <div class="col-md-5 text-right" id="creppdisc"></div>
+                                 </div>
+                              </div>
+                              <div class="col-md-12 mt-3">
+                                 <h4 style="color:#fd0202;">Enter Card Detail</h4>
+                                 <div class="col-md-12 mb-2">
+                                    <div class="row">
+                                       <select class="custom-select col-md-12 smallfont serachfield" id="crdtype">
+                                          <option value="1">VISA</option>
+                                          <option value="2">MASTER</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                                 <div class="col-md-12 mb-2">
+                                    <div class="row">
+                                       <input type="text" name="" placeholder="Ref.No / Card No."  id="crdno" class="form-control col-md-12 smallfont serachfield">
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-1 mb-3 text-center">
+                           </div>
+                           <div class="col-md-6 mb-3 text-center">
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="7" data-type="2" style="cursor:pointer;"><h6>7</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="8" data-type="2" style="cursor:pointer;"><h6>8</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="9" data-type="2" style="cursor:pointer;"><h6>9</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="4" data-type="2" style="cursor:pointer;"><h6>4</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="5" data-type="2" style="cursor:pointer;"><h6>5</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="6" data-type="2" style="cursor:pointer;"><h6>6</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="1" data-type="2" style="cursor:pointer;"><h6>1</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="2" data-type="2" style="cursor:pointer;"><h6>2</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="3" data-type="2" style="cursor:pointer;"><h6>3</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="clr" data-type="2" style="cursor:pointer;"><h6>C</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center"  data-value="0" data-type="2" style="cursor:pointer;"><h6>0</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="." data-type="2" style="cursor:pointer;"><h6>.</h6></div>
+                              </div>
+                           </div>
+                           <div class="col-md-12 mt-2">
+                              <div class="row">
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="0"> Cash</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="1"> Credit</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="2"> App Payment</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="3"> Customer</a></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Advance</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Tips</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Rewards</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-5"> Other</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white paymentbtn ppcreditconfirmorder"> Pay</a>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-md-12 mb-3 divpay" id="divpay2" style="display: none;">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="row">
+                           <div class="col-md-12">
+                              <h3>App Payment</h3>
+                              <hr>
+                              <div class="row mt-3 mb-3">
+                                 <div class="col-md-3 text-center">
+                                    <h5>Balance Due</h5>
+                                    <h5 class="ordramtpy" style="color:#0975bb;" id="appcashttlpp">0.00</h5>
+                                 </div>
+                                 <div class="col-md-5 text-center">
+                                    <h5>Amount Tendered</h5>
+                                    <input class="paynumchng text-right" style="color:#000;" id="apppayrecpp" value="0.00" data-type="3" autocomplete="off">
+                                 </div>
+                                 <div class="col-md-4 text-center">
+                                    <h5>Change</h5>
+                                    <h5 class="refbal" style="color:#fd0202;" id="appbalttlpp">0.00</h5>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-5">
+                              <div class="col-md-12 mb-3">
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Sub Total</h6></div>
+                                    <div class="col-md-5 text-right" id="appppsubttl"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Taxes</h6></div>
+                                    <div class="col-md-5 text-right" id="apppptax"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Discount</h6></div>
+                                    <div class="col-md-5 text-right" id="appppdisc"></div>
+                                 </div>
+                              </div>
+                              <div class="col-md-12 mt-3">
+                                 <h4 style="color:#fd0202;">Enter App Detail</h4>
+                                 <div class="col-md-12 mb-2">
+                                    <div class="row">
+                                       <select class="custom-select col-md-12 smallfont serachfield" id="apptype">
+                                          <option value="1">Zomato Cash</option>
+                                          <option value="2">Zomato Online</option>
+                                          <option value="3">Talibaat Cash</option>
+                                          <option value="4">Talibaat Online</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                                 <div class="col-md-12 mb-2">
+                                    <div class="row">
+                                       <input type="text" name="" placeholder="Ref.No "  id="appno" class="form-control col-md-12 smallfont serachfield">
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-1 mb-3 text-center">
+                           </div>
+                           <div class="col-md-6 mb-3 text-center">
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="7" data-type="3" style="cursor:pointer;"><h6>7</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="8" data-type="3" style="cursor:pointer;"><h6>8</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="9" data-type="3" style="cursor:pointer;"><h6>9</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="4" data-type="3" style="cursor:pointer;"><h6>4</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="5" data-type="3" style="cursor:pointer;"><h6>5</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="6" data-type="3" style="cursor:pointer;"><h6>6</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="1" data-type="3" style="cursor:pointer;"><h6>1</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="2" data-type="3" style="cursor:pointer;"><h6>2</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="3" data-type="3" style="cursor:pointer;"><h6>3</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="clr" data-type="3" style="cursor:pointer;"><h6>C</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center"  data-value="0" data-type="3" style="cursor:pointer;"><h6>0</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="." data-type="3" style="cursor:pointer;"><h6>.</h6></div>
+                              </div>
+                           </div>
+                           <div class="col-md-12 mt-2">
+                              <div class="row">
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="0"> Cash</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="1"> Credit</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="2"> App Payment</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="3"> Customer</a></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Advance</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Tips</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Rewards</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-5"> Other</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white paymentbtn ppappconfirmorder"> Pay</a>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-md-12 mb-3 divpay" id="divpay3" style="display: none;">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="row">
+                           <div class="col-md-12">
+                              <h3>Customer</h3>
+                              <hr>
+                              <div class="row mt-3 mb-3">
+                                 <div class="col-md-3 text-center">
+                                    <h5>Balance Due</h5>
+                                    <h5 class="ordramtpy" style="color:#0975bb;" id="cuscashttlpp">0.00</h5>
+                                 </div>
+                                 <div class="col-md-5 text-center">
+                                    <h5>Amount Tendered</h5>
+                                    <input class="paynumchng text-right" style="color:#000;" id="cuspayrecpp" value="0.00"/ data-type="4" autocomplete="off">
+                                 </div>
+                                 <div class="col-md-4 text-center">
+                                    <h5>Change</h5>
+                                    <h5 class="refbal" style="color:#fd0202;" id="cusbalttlpp">0.00</h5>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-5">
+                              <div class="col-md-12 mb-3">
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Sub Total</h6></div>
+                                    <div class="col-md-5 text-right" id="cusppsubttl"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Taxes</h6></div>
+                                    <div class="col-md-5 text-right" id="cuspptax"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Discount</h6></div>
+                                    <div class="col-md-5 text-right" id="cusppdisc"></div>
+                                 </div>
+                              </div>
+                              <div class="col-md-12 mt-3">
+                                 <h4 style="color:#fd0202;">Customer Detail</h4>
+                                 <?php $custdetail=Session::get('ordercust'); ?>
+                                    @if(!empty( $custdetail))
+                                       <div class="col-md-12 mb-2">
+                                          <div class="row">
+                                             <b> Cust ID: </b>{{$custdetail['custid']}}
+                                          </div>
+                                       </div>
+                                       <div class="col-md-12 mb-2">
+                                          <div class="row">
+                                             <b> Cust Name: </b>{{$custdetail['custname']}}
+                                          </div>
+                                       </div>
+                                       <div class="col-md-12 mb-2">
+                                          <div class="row">
+                                             <b> Cust Phone: </b>{{$custdetail['custphone']}}
+                                          </div>
+                                       </div>
+                                    @else
+                                       <div class="col-md-12 mb-2">
+                                          <div class="row">
+                                             <b style="color:red;">No Customer Linked:</b>
+                                          </div>
+                                       </div>
+                                    @endif
+                              </div>
+                           </div>
+                           <div class="col-md-1 mb-3 text-center">
+                           </div>
+                           <div class="col-md-6 mb-3 text-center">
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="7" data-type="4" style="cursor:pointer;"><h6>7</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="8" data-type="4" style="cursor:pointer;"><h6>8</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="9" data-type="4" style="cursor:pointer;"><h6>9</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="4" data-type="4" style="cursor:pointer;"><h6>4</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="5" data-type="4" style="cursor:pointer;"><h6>5</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="6" data-type="4" style="cursor:pointer;"><h6>6</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="1" data-type="4" style="cursor:pointer;"><h6>1</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="2" data-type="4" style="cursor:pointer;"><h6>2</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="3" data-type="4" style="cursor:pointer;"><h6>3</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="clr" data-type="4" style="cursor:pointer;"><h6>C</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center"  data-value="0" data-type="4" style="cursor:pointer;"><h6>0</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  paynumPad newnumPad text-center" data-value="." data-type="4" style="cursor:pointer;"><h6>.</h6></div>
+                              </div>
+                           </div>
+                           <div class="col-md-12 mt-2">
+                              <div class="row">
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="0"> Cash</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="1"> Credit</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="2"> App Payment</a></div>
+                                 <div class="col-md-3">
+
+                                    <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn paytypesel" data-id="3"> Customer</a>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Advance</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Tips</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Rewards</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-5"> Other</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white paymentbtn ppcustconfirmorder"> Pay</a>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="col-md-8 p-2 othersidediv" id="propaymenthidediv" style="display: none;">
+            <div class="cardstyle p-1 mb-3">
+               
+               <div class="col-md-12 mb-3 prodivpay" id="prodivpay0">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="row">
+                           <div class="col-md-12">
+                              <h3>Cash Payment</h3>
+                              <hr>
+                              <div class="row mt-3 mb-3">
+                                 <div class="col-md-3 text-center">
+                                    <h5>Balance Due</h5>
+                                    <h5 class="proordramtpy" style="color:#0975bb;" id="cashttlpp">0.00</h5>
+                                 </div>
+                                 <div class="col-md-5 text-center">
+                                    <h5>Amount Tendered</h5>
+                                    <input type="text" class="propaynumchng text-right" style="color:#000;" id="propayrecpp" value="0.00" data-type="1" autocomplete="off">
+                                 </div>
+                                 <div class="col-md-4 text-center">
+                                    <h5>Change</h5>
+                                    <h5 class="prorefbal" style="color:#fd0202;" id="procashbalttlpp1">0.00</h5>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-5">
+                              <div class="col-md-12">
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Sub Total</h6></div>
+                                    <div class="col-md-5 text-right" id="ppsubttl"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Taxes</h6></div>
+                                    <div class="col-md-5 text-right" id="pptax"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Discount</h6></div>
+                                    <div class="col-md-5 text-right" id="ppdisc"></div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-1 mb-3 text-center">
+                           </div>
+                           <div class="col-md-6 mb-3 text-center">
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="7" data-type="1" style="cursor:pointer;"><h6>7</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="8" data-type="1" style="cursor:pointer;"><h6>8</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="9" data-type="1" style="cursor:pointer;"><h6>9</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="4" data-type="1" style="cursor:pointer;"><h6>4</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="5" data-type="1" style="cursor:pointer;"><h6>5</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="6" data-type="1" style="cursor:pointer;"><h6>6</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="1" data-type="1" style="cursor:pointer;"><h6>1</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="2" data-type="1" style="cursor:pointer;"><h6>2</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="3" data-type="1" style="cursor:pointer;"><h6>3</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="clr" data-type="1" style="cursor:pointer;"><h6>C</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center"  data-value="0" data-type="1" style="cursor:pointer;"><h6>0</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="." data-type="1" style="cursor:pointer;"><h6>.</h6></div>
+                              </div>
+                           </div>
+                           <div class="col-md-12 mt-2">
+                              <div class="row">
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="0"> Cash</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="1"> Credit</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="2"> App Payment</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="3"> Customer</a></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Advance</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Tips</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Rewards</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-5"> Other</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white paymentbtn proppconfirmorder"> Pay</a>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-md-12 mb-3 prodivpay" id="prodivpay1" style="display: none;">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="row">
+                           <div class="col-md-12">
+                              <h3>Credit Payment</h3>
+                              <hr>
+                              <div class="row mt-3 mb-3">
+                                 <div class="col-md-3 text-center">
+                                    <h5>Balance Due</h5>
+                                    <h5 class="proordramtpy" style="color:#0975bb;" id="proccrecrecashttlpp">0.00</h5>
+                                 </div>
+                                 <div class="col-md-5 text-center">
+                                    <h5>Amount Tendered</h5>
+                                    <input type="text" class="propaynumchng text-right" style="color:#000;" id="procrepayrecpp" value="0.00" data-type="2" autocomplete="off">
+                                 </div>
+                                 <div class="col-md-4 text-center">
+                                    <h5>Change</h5>
+                                    <h5 class="prorefbal" style="color:#fd0202;" id="procreditbalttlpp">0.00</h5>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-5">
+                              <div class="col-md-12 mb-3">
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Sub Total</h6></div>
+                                    <div class="col-md-5 text-right" id="proccrecreppsubttl"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Taxes</h6></div>
+                                    <div class="col-md-5 text-right" id="proccrecrepptax"></div>
+                                 </div>
+                                 <div class="row bottomborder align-items-center p-1">
+                                    <div class="col-md-7"><h6>Discount</h6></div>
+                                    <div class="col-md-5 text-right" id="proccrecreppdisc"></div>
+                                 </div>
+                              </div>
+                              <div class="col-md-12 mt-3">
+                                 <h4 style="color:#fd0202;">Enter Card Detail</h4>
+                                 <div class="col-md-12 mb-2">
+                                    <div class="row">
+                                       <select class="custom-select col-md-12 smallfont serachfield" id="proccrecrdtype">
+                                          <option value="1">VISA</option>
+                                          <option value="2">MASTER</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                                 <div class="col-md-12 mb-2">
+                                    <div class="row">
+                                       <input type="text" name="" placeholder="Ref.No / Card No."  id="proccrecrdno" class="form-control col-md-12 smallfont serachfield">
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="col-md-1 mb-3 text-center">
+                           </div>
+                           <div class="col-md-6 mb-3 text-center">
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="7" data-type="2" style="cursor:pointer;"><h6>7</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="8" data-type="2" style="cursor:pointer;"><h6>8</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="9" data-type="2" style="cursor:pointer;"><h6>9</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="4" data-type="2" style="cursor:pointer;"><h6>4</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="5" data-type="2" style="cursor:pointer;"><h6>5</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="6" data-type="2" style="cursor:pointer;"><h6>6</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="1" data-type="2" style="cursor:pointer;"><h6>1</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="2" data-type="2" style="cursor:pointer;"><h6>2</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="3" data-type="2" style="cursor:pointer;"><h6>3</h6></div>
+                              </div>
+                              <div class="row">
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="clr" data-type="2" style="cursor:pointer;"><h6>C</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center"  data-value="0" data-type="2" style="cursor:pointer;"><h6>0</h6></div>
+                                 <div class="col-md-4 col-sm-4 col-xs-4  propaynumPad newnumPad text-center" data-value="." data-type="2" style="cursor:pointer;"><h6>.</h6></div>
+                              </div>
+                           </div>
+                           <div class="col-md-12 mt-2">
+                              <div class="row">
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="0"> Cash</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="1"> Credit</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="2"> App Payment</a></div>
+                                 <div class="col-md-3"><a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn propaytypesel" data-id="3"> Customer</a></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Advance</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Tips</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-3"> Rewards</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderbtn mb-5"> Other</a>
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white paymentbtn proppcreditconfirmorder"> Pay</a>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="col-md-8 p-2 othersidediv" id="customerhidediv" style="display: none;">
+            <div class="cardstyle p-1 mb-3">
+               <div class="col-md-12 mb-3">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <div class="col-md-12"><h4>Add New Customer</h4></div>
+                        <select id="predishidden" style="display: none;">
+                          <option value="">Select Discount</option>
+                          @if(count($alldiscount)>0)
+                          @foreach($alldiscount as $t)
+                            <option value="{{$t->id}}">{{$t->discount_name}}</option>
+                          @endforeach 
+                          @else
+                            <option value="">No Discount</option>
+                          @endif
+                        </select>
+                        <form id="customerajax" action="{{url('/codxadmin/addnewcustomerajax')}}" class="" enctype="multipart/form-data">
+                          @csrf 
+                          <div class="row mt-3">
+                            <div class="col-md-6">
+                              <div class="form-group row">
+                                <label class="col-sm-4">Customer Type</label>
+                                <div class="col-sm-8">
+                                  <select class="form-control custom-select select2" name="custtype" required="" style="width: 100%;">
+                                    <option value="">Select</option>
+                                    @foreach($allcustomertype as $custype)
+                                    <option value="{{$custype->id}}">{{$custype->customertype}}</option>
+                                    @endforeach
+                                  </select>
+                                </div>
+                              </div>
+                              <div class="form-group row align-items-center">
+                                <label class="col-sm-4">Phone Number</label>
+                                <div class="col-sm-6">
+                                  <input type="text" class="form-control serachfield" name="custphone" placeholder="Phone" required="">
+                                </div>
+                                <div class="col-sm-2">
+                                    <a class="addphonecust" data-id="1"><i class="fas fa-plus-circle" aria-hidden="true"></i></a>
+                                  </div>
+                              </div>
+                              <div class="form-group row align-items-center" id="phone2" style="display: none;">
+                                <label class="col-sm-4">Res. Number</label>
+                                <div class="col-sm-6">
+                                  <input type="text" class="form-control serachfield" name="custresphone" placeholder="Res. Number">
+                                </div>
+                                <div class="col-sm-2">
+                                  <a class="addphonecust" data-id="2"><i class="fas fa-plus-circle" aria-hidden="true"></i></a>
+                                  <a class="deletecustphone" data-id="2"><i class="fas fa-minus-circle" aria-hidden="true"></i></a>
+                                </div>
+                              </div>
+                              <div class="form-group row align-items-center" id="phone3" style="display: none;">
+                                <label class="col-sm-4">Other Number</label>
+                                <div class="col-sm-6">
+                                  <input type="text" class="form-control serachfield" name="custothphone" placeholder="Res. Number">
+                                </div>
+                                <div class="col-sm-2">
+                                  <a class="deletecustphone" data-id="3"><i class="fas fa-minus-circle" aria-hidden="true"></i></a>
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label class="col-sm-4">Birthday</label>
+                                <div class="col-sm-8">
+                                  <input type="text" name="custbdate" class="form-control predatepickerfld serachfield" autocomplete="off" placeholder="Birthday">
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label for="example-search-input" class="col-sm-4 col-form-label">Link to Accounting</label>
+                                <div class="col-sm-8">
+                                  <input type="checkbox" id="switch5" switch="bool" name="in_accounting" value="1"/> 
+                                  <label for="switch5" data-on-label="Y" data-off-label="N"></label>
+                                </div>
+                              </div>    
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-group row">
+                                <label class="col-sm-4">Customer Name</label>
+                                <div class="col-sm-8">
+                                  <input type="text" name="custname" class="form-control serachfield" placeholder="Customer Name" required="">
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label class="col-sm-4">Customer Email</label>
+                                <div class="col-sm-8">
+                                  <input type="text" class="form-control serachfield" name="custemail" placeholder="Customer Email" required="">
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label class="col-sm-4">Anniversary</label>
+                                <div class="col-sm-8">
+                                  <input type="text" name="custanvery" class="form-control predatepickerfld serachfield" autocomplete="off" placeholder="Anniversary">
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label for="example-search-input" class="col-sm-4 col-form-label">Valid</label>
+                                <div class="col-sm-4">
+                                  <input class="form-control datepicker serachfield" type="text" id="dt1" name="from_date" placeholder="From" autocomplete="off">
+                                </div>
+                                <div class="col-sm-4">
+                                  <input class="form-control datepicker serachfield" type="text" id="dt2" name="to_date" placeholder="To" autocomplete="off">
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-12">
+                              <div class="form-group row align-items-center">
+                                <label class="col-sm-3">Customer Address</label>
+                                <div class="col-sm-7">
+                                  <textarea class="form-control " name="custaddress" placeholder="Customer Address" required=""></textarea>
+                                </div>
+                                <div class="col-md-2">
+                                  <a class="addcustadress" data-id="1"><i class="fas fa-plus-circle" aria-hidden="true"></i></a>
+                                </div>
+                              </div>
+                              <div class="form-group row align-items-center" id="address2" style="display:none;">
+                                <label class="col-sm-3">Customer Address 2</label>
+                                <div class="col-sm-7">
+                                  <textarea class="form-control " name="custaddresstow" placeholder="Customer Address 2"></textarea>
+                                </div>
+                                <div class="col-md-2">
+                                  <a class="addcustadress" data-id="2"><i class="fas fa-plus-circle" aria-hidden="true"></i></a>
+                                  <a class="removecustadress" data-id="2"><i class="fas fa-minus-circle" aria-hidden="true"></i></a>
+                                </div>
+                              </div>
+                              <div class="form-group row align-items-center" id="address3" style="display:none;">
+                                <label class="col-sm-3">Customer Address 3</label>
+                                <div class="col-sm-7">
+                                  <textarea class="form-control " name="custaddressthree" placeholder="Customer Address 3"></textarea>
+                                </div>
+                                <div class="col-md-2">
+                                  <a class="removecustadress" data-id="3"><i class="fas fa-minus-circle" aria-hidden="true"></i></a>
+                                </div>
+                              </div>
+                            </div>
+                          </div>        
+                          <div class="form-group row">
+                            <div class="col-sm-6">
+                              <a class="btn neworderbtn btn-primary waves-effect waves-light" id="cust_detail" style="color: white;">+ More Details</a>
+                            </div>   
+                          </div>
+                          <hr>
+                          <div class="row mt-3" id="cdetail" style="display: none">
+                            <div class="col-md-6">
+                              <div class="form-group row">
+                                <label class="col-sm-4">Discount Type</label>
+                                <div class="col-sm-8">
+                                  <label class="radio-inline"><input class="cusdisselet" id="cusdisper" type="radio" name="optradio" value="1" checked> Discount Percentage</label>&nbsp;&nbsp;
+                                  <label class="radio-inline"><input class="cusdisselet" id="cusdisper" type="radio" name="optradio" value="2"> PreDefined Discount</label>
+                                </div>
+                              </div>
+                              <div class="form-group row" id="discountchange">
+                                <label class="col-sm-4">Discount Percentage</label>
+                                <div class="col-sm-8"><input type="text" class="form-control serachfield" name="disc_code" value="0" placeholder="Discount Percentage"></div>
+                              </div>
+                              <div class="form-group row">
+                                <label class="col-sm-4">Country</label>
+                                <div class="col-sm-8">
+                                  <select class="col-md-12 form-control custom-select select2" name="country" style="width: 100%">
+                                    <option value="">Select Country</option>
+                                    @foreach($country as $ctry)
+                                    <option value="{{$ctry->id}}">{{$ctry->nicename}}</option>
+                                    @endforeach
+                                  </select>
+                                </div>
+                              </div>    
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-group row">
+                                <label class="col-sm-4">Credit Limit</label>
+                                <div class="col-sm-8">
+                                  <input type="text" class="form-control serachfield" name="credit_limit" placeholder="Credit Limit">
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label class="col-sm-4">Tax Reference</label>
+                                <div class="col-sm-8">
+                                  <input type="text" class="form-control serachfield" name="tax_ref" placeholder="Tax Reference">
+                                </div>
+                              </div>
+                              <div class="form-group row">
+                                <label class="col-sm-4">Payment Terms</label>
+                                <div class="col-sm-8">
+                                  <select class="form-control select custom-select serachfield" name="pay_term">
+                                    <option value="">Select Payment Terms</option>
+                                    <option value="20">Due 20th Of the Following Month</option>
+                                    <option value="30">Due By End Of The Following Month</option>
+                                    <option value="7">Payment due within 7 days</option>
+                                    <option value="CA">Cash Only</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="form-group row">
+                            <div class="col-sm-12 text-right">
+                              <button class="btn neworderbtn btn-primary waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Customer</button>
+                            </div>
+                          </div>
+                        </form>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn"> Hide</a>
+                     </div>
+                  </div>
+               </div>
+               
+            </div>
+         </div>
+         <div class="col-md-8 p-2 othersidediv" id="pendingorderhidediv" style="display: none;">
+            <div class="cardstyle p-1 mb-3">
+               <div class="col-md-12 mb-3">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <h3>Pending Orders</h3>
+                        <div class="row">
+                           @if(count($processingorder)>0) 
+                           @foreach($processingorder as $porder)
+                           <div class="col-md-3 mb-4">
+                              <div class="cstmcardbody text-center">
+                                 <h4>{{$porder->orderno}}</h4>
+                                 <h6>{{$porder->total}}</h6>
+                                 <p><a href="{{url('/codxadmin/procneworder/'.base64_encode($porder->id))}}" style="cursor: pointer;">Detail</a></p>
+                              </div>
+                           </div>
+                           @endforeach 
+                           @else
+                           <p style="color:red;">No Pending Order Yet!!!</p>
+                           @endif
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="col-md-8 p-2 othersidediv" id="discounthidediv" style="display: none;">
+            <div class="cardstyle p-1 mb-3">
+               <div class="col-md-12 mb-3">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <h3>Discount</h3>
+                        <div class="row">
+                           <select class="form-control" id="neworderdicount" name="disstatus">
+                              <option value="">--Select--</option>
+                              @if(count($alldiscount)>0) @foreach($alldiscount as $t)
+                              <option value="{{$t->id}}">{{$t->discount_name}}</option>
+                              @endforeach @else
+                              <option value="">No Discount</option>
+                              @endif
+                           </select>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="col-md-8 p-2 othersidediv" id="scanhidediv" style="display: none;">
+            <div class="cardstyle p-1 mb-3">
+               <div class="col-md-12 mb-3">
+                  <div class="row">
+                     <div class="col-md-10">
+                        <h3>Barcode</h3>
+                        <div class="row">
+                           <input type="text" class="form-control" class="" id="barcodescanner" autofocus>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <a class=" col-md-12 btn btn-rounded btn-info text-white neworderhidebtn mb-5"> Hide</a>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+
+   <!-- Main Wrapper -->
+   
+</div>
+
+<!-- /Page Inner -->
+<div class="modal fade bs-example-modal-print-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+   <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+         <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title mt-0" id="myLargeModalLabel">Print</h5>
+         </div>
+         <div class="modal-body printbody">
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-rounded btn-danger waves-effect printmodalclosebtn" data-dismiss="modal ">Close</button>
+         </div>
+      </div>
+      <!-- /.modal-content -->
+   </div>
+   <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+@if(($date_now > $date2 || $businessdate['contn']=="0") && $date_now != $date2)
+<script type="text/javascript">
+   $(document).ready(function(){
+      Swal.fire({
+        title: 'Are you sure?',
+        text: "Do You Want to Change Order Date !",
+        type: 'warning',
+        showCancelButton: true,
+        confirmButtonClass: 'btn btn-success',
+        cancelButtonClass: 'btn btn-danger m-l-10',
+        cancelButtonText: 'No, cancel!',
+        confirmButtonText: 'Yes, Change it!'
+      }).then((result)=> {
+         if (result.value) {
+           window.location.href = "/retail/codxadmin/sod";
+         }        
+      })
+   })
+</script>
+@endif
+@endsection
