@@ -1,0 +1,1585 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Response;
+use Illuminate\Http\Request;
+use Session;
+use Cookie;
+use DB;
+use Hash;
+use PDF;
+use Excel;
+
+use App\Company;
+use App\Product;
+use App\Productcategory;
+use App\Productgroup;
+use App\Productgroupdetail;
+use App\Unit;
+use App\Assemblyproduct;
+use App\Location;
+use App\Recipe;
+use App\Recipeitem;
+use App\Production;
+
+
+class Productcontroller extends Controller
+{
+    //-------- Admin Products (START)
+    //=============== product Categories
+    public function getAllCategoriesList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->paginate(10);
+            $data['len']='10';
+            return view('admin.productcategorieslist',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function postAllCategoriesList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+           $data=array();
+           $a=$request->post('len');
+           $userdata=$request->session()->get('userdata');
+           $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->paginate($a);
+           $data['len']=$a;
+           return view('admin.productcategorieslist',$data);
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function getAddNewCategory(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->where('parent_category','0')->get();
+            return view('admin.productcategoryadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveAddNewCategory(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $pcat = Productcategory::where('category_name',$request->post('catname'))->where('company_id',$userdata['logincompany'])->first();
+            if(empty($pcat)){
+                $pcurl="";
+                if($request->hasfile('pclogo')){
+                    $dimage = $request->file('pclogo');
+                    $dname=$dimage->getClientOriginalName();
+                    $dimage->move(public_path().'/assets/images/productcatimage/', $dname);  
+                    $pcurl='public/assets/images/productcatimage/'.$dname;
+                }
+
+                $pcat = new Productcategory;
+                $pcat->user_id = $userdata['user_id'];
+                $pcat->company_id = $userdata['logincompany'];
+                $pcat->category_name = $request->post('catname');
+                $pcat->other_language = $request->post('othercatname');
+                $pcat->parent_category = $request->post('pcate');
+                $pcat->category_image = $pcurl;
+                if($pcat->save()){
+                    $lastid= $pcat->id;
+                    $data["message"]='<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Category Save Successfully.</div>';
+                }else{
+                    $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Sorry Please Try Again After Sometimne!!.</div>';
+                }
+
+            }else{
+                $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Category Already Exist!!!.</div>';
+            }
+            $userdata=$request->session()->get('userdata');
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            return view('admin.productcategoryadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function deleteProductCategory($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $prod=Productcategory::find($id);
+            if($prod->delete()){
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Category Deleted Successfully!!!.</div>');                         
+            }else{
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not Deleted Please Try Again!!!.</div>');
+            }
+            return redirect('/codxadmin/categorylist');
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getEditProductCategory($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['categorydata']=Productcategory::where('company_id',$userdata['logincompany'])->where('id',$id)->first();
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->where('parent_category','0')->get();
+            return view('admin.editproductcategories',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveUpdateCategory($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            print_r($request->post());
+            //die;
+            if(empty($request->post('oldcatpic'))){
+                $pcurl="";
+            }else{
+                $pcurl=$request->post('oldcatpic');
+            }
+            
+            if($request->hasfile('pclogo')){
+                $dimage = $request->file('pclogo');
+                $dname=$dimage->getClientOriginalName();
+                $dimage->move(public_path().'/assets/images/productcatimage/', $dname);  
+                $pcurl='public/assets/images/productcatimage/'.$dname;
+            }
+            $pcat = Productcategory::find($id);
+            $pcat->user_id = $userdata['user_id'];
+            $pcat->company_id = $userdata['logincompany'];
+            $pcat->category_name = $request->post('catname');
+            $pcat->other_language = $request->post('othercatname');
+            $pcat->parent_category = $request->post('pcate');
+            $pcat->category_image = $pcurl;
+            if($pcat->save()){
+                $lastid= $pcat->id;
+                $data["message"]='<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Category Update Successfully.</div>';
+            }else{
+                $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Sorry Please Try Again After Sometimne!!.</div>';
+            }
+
+            $data['categorydata']=Productcategory::where('company_id',$userdata['logincompany'])->where('id',$id)->first();
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->where('parent_category','0')->get();
+            return view('admin.editproductcategories',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function checkCategoryDelete($id,$sub,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            if($sub!='0'){
+                $existproduct=Product::where('company_id',$userdata['logincompany'])->where('category',$id)->get();
+            }else{
+                $k=array($id);
+                $pchcategories=Productcategory::where('company_id',$userdata['logincompany'])->where('parent_category',$id)->get();
+                foreach($pchcategories as $pchcat){
+                    array_push($k, $pchcat->id);
+                }
+                $existproduct=Product::where('company_id',$userdata['logincompany'])->whereIn('category', $k)->get();
+            }
+            echo count($existproduct);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function hideProductCategory($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $prod=Productcategory::find($id);
+            $prod->status = '0';
+            if($prod->save()){
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Category De-Activate Successfully!!!.</div>');                         
+            }else{
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not  De-Activate Please Try Again!!!.</div>');
+            }
+            return redirect('/codxadmin/categorylist');
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function activateProductCategory($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $prod=Productcategory::find($id);
+            $prod->status = '1';
+            if($prod->save()){
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Category Activate Successfully!!!.</div>');                         
+            }else{
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not Activate Please Try Again!!!.</div>');
+            }
+            return redirect('/codxadmin/categorylist');
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function productCategoryPDF(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            if($request->post('type')=='1'){
+                $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            	$data['pdftitile']="Product Category";
+                    //$data['daterange']=array();
+                    $pdf = PDF::loadView('admin.productcatPDF',$data);
+                    $pdf->autoLangToFont = true;
+                    $pdf->allow_charset_conversion=true;  // Set by default to TRUE
+                    $pdf->charset_in='UTF-8';
+                    return $pdf->download(time().'.pdf');
+                }
+                elseif ($request->post('type')=='2') {
+                    $allcategories=Productcategory::where('company_id',$userdata['logincompany'])->get();
+                    $t[]=array('Image','Name','Status');
+                    foreach ($allcategories as  $value) {
+                        $t[]=array('Image'=>$value->category_image,'Name'=>$value->category_name,'Status'=>$value->status);
+                    }
+                    return Excel::create("Report", function($excel) use($t){
+                        $excel->setTitle("Report");
+                        $excel->sheet("Report",function($sheet) use($t){
+                            $sheet->fromArray($t, null, 'A1',false,false);
+                        });
+                    })->download('xlsx');
+                }
+        }else{
+            return redirect('/');
+        }
+    }
+    
+    //================ Products
+    public function getProductBulkUpdate(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allproducts']= DB::table('products')->select('products.*','productcategories.category_name')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->where('products.company_id',$userdata['logincompany'])->get();
+            //$data['len']='10';
+            return view('admin.productupdatelist',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getAllProductsList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allproducts']= DB::table('products')->select('products.*','productcategories.category_name')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->where('products.company_id',$userdata['logincompany']) ->whereIn('products.protype', ['1','2','4','5'])->paginate(10);
+            $data['len']='10';
+            return view('admin.productlist',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function postAllProductsList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+           $data=array();
+           $a=$request->post('len');
+           $userdata=$request->session()->get('userdata');
+           $data['allproducts']= DB::table('products')->select('products.*','productcategories.category_name')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->where('products.company_id',$userdata['logincompany']) ->whereIn('products.protype', ['1','2','4','5'])->paginate($a);
+           $data['len']=$a;
+           return view('admin.productlist',$data);
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function getAddNewProduct(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $four=substr($userdata['login_company_name'],0,4); 
+            $document_number=Product::select('pro_code')->where('company_id',$userdata['logincompany'])->orderBy('id','desc')->first();
+            if(empty($document_number)){
+                $newdocument_number= 'CDPRO'.$four.date('Y').'-'.'1';
+            }
+            else{
+                $lastdocument_number=explode("-", $document_number);
+                $dignewdocument_number=(int)$lastdocument_number[1]+1;
+                $newdocument_number='CDPRO'.$four.date('Y').'-'.$dignewdocument_number;
+            }
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            $data['uoms']=Unit::where('company_id',$userdata['logincompany'])->get();
+            $data['code']=$newdocument_number;
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            $data['recpprolist']=Recipe::where('company_id',$userdata['logincompany'])->get();
+            return view('admin.productadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveAddNewProduct(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $four=substr($userdata['login_company_name'],0,4); 
+            $productdata=Product::where('product_name',$request->post('proname'))->where('company_id',$userdata['logincompany'])->first();
+            if(empty($productdata)){
+            	$purl="";
+                if($request->hasfile('clogo')){
+                    $dimage = $request->file('clogo');
+                    $dname=$dimage->getClientOriginalName();
+                    $dimage->move(public_path().'/assets/images/productimage/', $dname);  
+                    $purl='public/assets/images/productimage/'.$dname;
+                }
+            	$prod = new Product;
+                $prod->user_id = $userdata['user_id'];
+                $prod->company_id = $userdata['logincompany'];
+                $prod->pro_code = $request->post('codxprocode');
+                $prod->user_pro_code = $request->post('userprocode');
+                $prod->product_name = $request->post('proname');
+                $prod->language_product_name = $request->post('othproname');
+                $prod->unit_price = $request->post('unitprice');
+                $prod->available_quantity = "1";
+                $prod->category = $request->post('pcate');
+                $prod->orderunit = $request->post('orderunit');
+                $prod->protype = $request->post('protypes');
+                $prod->costprice = $request->post('costprice');
+                $prod->barcode = $request->post('pbarcode');
+                $prod->description = $request->post('pdescription');
+                $prod->purchase_unit = $request->post('purchaseunit');
+                $prod->purchase_descr = $request->post('purdescription');
+                if($request->post('protypes')==1||$request->post('protypes')==6){
+                     $prod->saledisplay = '0';
+                }
+                if(!empty($request->post('bspro'))){
+                    $prod->best_selling = $request->post('bspro');
+                }
+                $prod->product_image = $purl;
+                if($prod->save()){
+                    $lastid= $prod->id;
+                    if($request->post('protypes')=="2"){
+                        foreach($request->post('assmb') as $asbp){
+                            $unitfac = new Assemblyproduct;
+                            $unitfac->user_id = $userdata['user_id'];
+                            $unitfac->company_id = $userdata['logincompany'];
+                            $unitfac->assenble_code = $request->post('codxprocode');
+                            $unitfac->pro_code = $asbp['item'];
+                            $unitfac->ass_qty = $asbp['qty'];
+                            $unitfac->save();
+                        }
+                        Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Added Successfully!!!.</div>');
+                        return redirect('/codxadmin/addproduct');
+                        //return redirect('/codxadmin/selectassemblyproduct/'.$lastid);
+
+                    }
+                    else{
+                        Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Added Successfully!!!.</div>');
+                        return redirect('/codxadmin/addproduct');
+                    }
+                }else{
+                    $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Sorry Please Try Again After Sometimne!!.</div>';
+                }
+            }else{
+            	$data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Product Already Exist!!!.</div>';
+            }
+            if(empty($document_number)){
+                $newdocument_number= 'CDPRO'.$four.date('Y').'-'.'1';
+            }
+            else{
+                $lastdocument_number=explode("-", $document_number);
+                $dignewdocument_number=(int)$lastdocument_number[1]+1;
+                $newdocument_number='CDPRO'.$four.date('Y').'-'.$dignewdocument_number;
+            }
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            $data['uoms']=Unit::where('company_id',$userdata['logincompany'])->get();
+            $data['code']=$newdocument_number;
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            $data['recpprolist']=Recipe::where('company_id',$userdata['logincompany'])->get();
+            return view('admin.productadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getEditProduct($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata'); 
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            $data['uoms']=Unit::where('company_id',$userdata['logincompany'])->get();
+            $data['prodata']=Product::where('company_id',$userdata['logincompany'])->where('pro_code',$id)->first();
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            
+            if($data['prodata']->protype=="2"){
+                $data['assprodata']=Assemblyproduct::where('company_id',$userdata['logincompany'])->where('assenble_code',$id)->get();
+            }
+            // echo "<pre>";
+            // print_r( $data);
+            // die;
+            return view('admin.productedit',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveEditProduct($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata'); 
+            $productdata=Product::where('company_id',$userdata['logincompany'])->where('pro_code',$id)->first();
+            $purl=$request->post('oldpic');
+                if($request->hasfile('clogo')){
+                    $dimage = $request->file('clogo');
+                    $dname=$dimage->getClientOriginalName();
+                    $dimage->move(public_path().'/assets/images/productimage/', $dname);  
+                    $purl='public/assets/images/productimage/'.$dname;
+                }
+                $prod = Product::find($productdata->id);
+                $prod->user_id = $userdata['user_id'];
+                $prod->company_id = $userdata['logincompany'];
+                $prod->pro_code = $request->post('codxprocode');
+                $prod->user_pro_code = $request->post('userprocode');
+                $prod->product_name = $request->post('proname');
+                $prod->language_product_name = $request->post('othproname');
+                $prod->unit_price = $request->post('unitprice');
+                $prod->available_quantity = "1";
+                $prod->category = $request->post('pcate');
+                $prod->orderunit = $request->post('orderunit');
+                $prod->protype = $request->post('protypes');
+                $prod->costprice = $request->post('costprice');
+                $prod->barcode = $request->post('pbarcode');
+                $prod->description = $request->post('pdescription');
+                $prod->purchase_unit = $request->post('purchaseunit');
+                $prod->purchase_descr = $request->post('purdescription');
+                if($request->post('protypes')>2){
+                     $prod->saledisplay = '0';
+                }
+                if(!empty($request->post('bspro'))){
+                    $prod->best_selling = $request->post('bspro');
+                }
+                $prod->product_image = $purl;
+                if($prod->save()){
+                    $lastid= $prod->id;
+                    if($request->post('protypes')=="2"){
+                        foreach($request->post('assmb') as $asbp){
+                            $unitfac = new Assemblyproduct;
+                            $unitfac->user_id = $userdata['user_id'];
+                            $unitfac->company_id = $userdata['logincompany'];
+                            $unitfac->assenble_code = $request->post('codxprocode');
+                            $unitfac->pro_code = $asbp['item'];
+                            $unitfac->ass_qty = $asbp['qty'];
+                            $unitfac->save();
+                        }
+                        Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Update Successfully!!!.</div>');
+                        return redirect('/codxadmin/editproduct/'.$id);
+                        //return redirect('/codxadmin/selectassemblyproduct/'.$lastid);
+
+                    }else{
+                        Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Update Successfully!!!.</div>');
+                        return redirect('/codxadmin/editproduct/'.$id);
+                    }
+                }else{
+                    Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Not Update, Please Try Again!!!.</div>');
+                        return redirect('/codxadmin/editproduct/'.$id);
+                }
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            $data['uoms']=Unit::where('company_id',$userdata['logincompany'])->get();
+            $data['prodata']=Product::where('company_id',$userdata['logincompany'])->where('pro_code',$id)->first();
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            
+            if($data['prodata']->protype=="2"){
+                $data['assprodata']=Assemblyproduct::where('company_id',$userdata['logincompany'])->where('assenble_code',$id)->get();
+            }
+            
+            return view('admin.productedit',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function productSearch(Request $request){
+        $search = $request->get('term');
+        $userdata=$request->session()->get('userdata');
+        $result = Product::where('company_id',$userdata['logincompany'])->where('product_name', 'LIKE', '%'. $search. '%')->where('status','1')->where('saledisplay','1')->get();
+        return response()->json($result);    
+    }
+    public function getProductListSearch($name,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['ut']= DB::table('products')->select('products.*','productcategories.category_name')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->where('products.product_name',$name)->where('products.company_id',$userdata['logincompany'])->first();
+            // $data['companylist'] = DB::table('users')->select('users.*', 'userpermissions.*', 'companies.id as cid','companies.*')->leftJoin('userpermissions', 'users.id', '=', 'userpermissions.user_id')->leftjoin("companies",DB::raw("FIND_IN_SET(companies.id,userpermissions.user_comapny)"),">",DB::raw("'0'"))->where('users.id',$userdata['user_id']  )->get();
+            
+            // $data['perm']=json_decode($data['companylist'][0]->formcontrol_permission);
+            $data['len']='10';
+            return view('admin.productlistsearch',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function getProductBarcodePrint($code,$prc,$mgdate,$expdate,$bartype,$numb, Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data['printdata']=array('code'=>$code,'proprc'=>$prc,'mgdate'=>$mgdate,'expdate'=>$expdate,'bartype'=>$bartype,'numb'=>$numb);
+            $pdf = PDF::loadView('barcodeprint',$data);
+            $pdf->autoLangToFont = true;
+            $pdf->allow_charset_conversion=true;  // Set by default to TRUE
+            $pdf->charset_in='UTF-8';
+            $pdf->setRTL =true;
+            return $pdf->stream();
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getAssemblyProductAdd($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            return view('admin.assemblyproadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveAssemblyProductAdd($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            foreach($request->post('assmb') as $asbp){
+                $unitfac = new Assemblyproduct;
+                $unitfac->pro_code = $asbp['item'];
+                $unitfac->ass_qty = $asbp['qty'];
+                $unitfac->save();
+            }
+            Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Product Added Successfully!!!.</div>');
+            return redirect('/codxadmin/addproduct');
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getProductDetail($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['productdetail']=DB::table('products')->select('products.*','productcategories.category_name','units.uom')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('products.pro_code',$id)->where('products.company_id',$userdata['logincompany'])->first();
+            if($data['productdetail']->protype=="2"){
+                $data['assproduct']=DB::table('assemblyproducts')->select('assemblyproducts.ass_qty','products.*','units.uom')->leftJoin('products', 'products.pro_code', '=', 'assemblyproducts.pro_code')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('assemblyproducts.assenble_code',$id)->get();
+            }
+            // echo "<pre>";
+            // print_r($data);
+            // die;
+            return view('admin.productdetail',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getItemDetails(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $value = $request->value;
+            $userdata=$request->session()->get('userdata');
+            $idp =  DB::table('products')->select('products.*','units.uom as uomname')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('products.pro_code' , $value)->first();
+            $res=array('status'=>'1','message'=>"get",'data'=>$idp);
+            return json_encode($res);
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+
+    public function getEditAssamblyProduct($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['productdetail']=DB::table('products')->select('products.*','productcategories.category_name','units.uom')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('products.pro_code',$id)->where('products.company_id',$userdata['logincompany'])->first();
+            
+            $data['assproduct']=DB::table('assemblyproducts')->select('assemblyproducts.ass_qty','products.*','units.uom')->leftJoin('products', 'products.pro_code', '=', 'assemblyproducts.pro_code')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('assemblyproducts.assenble_code',$id)->get();
+            
+            
+            return view('admin.editassemblyproduct',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveEditAssamblyProduct($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            Product::where('pro_code',$id)->update(array('unit_price' => $request->post('unitprice')));
+            $data["message"]='<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Assembly Update Successfully.</div>';
+            $data['productdetail']=DB::table('products')->select('products.*','productcategories.category_name','units.uom')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('products.pro_code',$id)->where('products.company_id',$userdata['logincompany'])->first();
+            
+            $data['assproduct']=DB::table('assemblyproducts')->select('assemblyproducts.ass_qty','products.*','units.uom')->leftJoin('products', 'products.pro_code', '=', 'assemblyproducts.pro_code')->leftJoin('units', 'products.orderunit', '=', 'units.id')->where('assemblyproducts.assenble_code',$id)->get();
+            
+            
+            return view('admin.editassemblyproduct',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    
+
+    //=============== Product Transfer With API(Start)
+    public function getProductTransferToCloud($type="", Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $data=array();
+            $data['type']=$type;
+            $data['compny']= DB::table('companies as c1')->select('c2.*')->leftjoin("companies as c2",DB::raw("FIND_IN_SET(c2.company_uniq_id,c1.inter_link_company)"),">",DB::raw("'0'"))->where('c1.id',$userdata['logincompany']  )->get();
+            if(empty($type)){
+                return view('admin.selectproducttransfertype',$data);  
+            }else{
+                $data['allproducts']=Product::where('company_id',$userdata['logincompany'])->where('protype',$type)->get();
+                return view('admin.producttransfer',$data);  
+            }
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function saveProductTransferToCloud($type="", Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $data=array();
+            $data['type']=$type;
+            $sendcompany=Company::where('id',$userdata['logincompany'])->select('company_uniq_id')->first();
+            $data['compny']= DB::table('companies as c1')->select('c1.*')->leftjoin("companies as c2",DB::raw("FIND_IN_SET(c2.company_uniq_id,c1.inter_link_company)"),">",DB::raw("'0'"))->where('c1.id',$userdata['logincompany']  )->get();
+            if(!empty($type)&&!empty($request->post('selproduct'))){
+                $allproducts= DB::table('products')->select('products.*','productcategories.category_name','ou1.uom as orderuomunit','ou1.decsription as orderudesunit','ou1.conversion_factor as orderconunit','ou1.base_uom as orderbaseunit','pu1.uom as purchaseuomunit','pu1.decsription as purchaseudesunit','pu1.conversion_factor as purchaseconunit','pu1.base_uom as purchasebaseunit')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units as ou1', 'products.orderunit', '=', 'ou1.id')->leftJoin('units as pu1', 'products.purchase_unit', '=', 'pu1.id')->where('products.company_id',$userdata['logincompany'])->where('products.protype', $type)->whereIn('products.pro_code', $request->post('selproduct'))->get()->toArray();
+
+                $senddata= json_decode(json_encode($allproducts), true);
+                $sendada=array('products'=> $senddata,'fromcompany'=>$sendcompany->company_uniq_id,"Tocompany"=>$request->post('company_to'));
+                $k = json_encode($sendada);
+                $ch = curl_init(); 
+                curl_setopt($ch, CURLOPT_URL,"http://codxretail.online/api/producttransferapi/".$type);
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS,$k);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array( 
+                    'Content-Type: application/json', 
+                    'Content-Length: ' . strlen($k)) 
+                ); 
+                $response = curl_exec($ch);
+                $err = curl_error($ch);
+                curl_close($ch);    
+                if ($err) {
+                    echo "cURL Error #:" . $err;
+                } else {
+                   
+                    $dcjsn=json_decode($response);
+                    Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong>'.$dcjsn->Message.'</div>');
+                    return redirect('/codxadmin/prodcuttransfer/'.$type);
+
+                }
+            }else{
+                $data['allproducts']=Product::where('company_id',$userdata['logincompany'])->where('protype',$type)->get();
+                $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Please Select Atleast Single Product.</div>';
+                return view('admin.producttransfer',$data);  
+            }
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveSingleProductTransferToCloud($type="", Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $data=array();
+            
+            $data['type']=$type;
+            $sendcompany=Company::where('id',$userdata['logincompany'])->select('company_uniq_id')->first();
+            $data['compny']= DB::table('companies as c1')->select('c1.*')->leftjoin("companies as c2",DB::raw("FIND_IN_SET(c2.company_uniq_id,c1.inter_link_company)"),">",DB::raw("'0'"))->where('c1.id',$userdata['logincompany']  )->get();
+            if(!empty($request->get('company_to'))&&!empty($type)&&!empty($request->get('selproduct'))){
+                if($type=="1"||$type=="4"||$type=="5"){
+                    $allproducts= DB::table('products')->select('products.*','productcategories.category_name','ou1.uom as orderuomunit','ou1.decsription as orderudesunit','ou1.conversion_factor as orderconunit','ou1.base_uom as orderbaseunit','pu1.uom as purchaseuomunit','pu1.decsription as purchaseudesunit','pu1.conversion_factor as purchaseconunit','pu1.base_uom as purchasebaseunit')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units as ou1', 'products.orderunit', '=', 'ou1.id')->leftJoin('units as pu1', 'products.purchase_unit', '=', 'pu1.id')->where('products.company_id',$userdata['logincompany'])->where('products.protype', $type)->whereIn('products.pro_code', [$request->get('selproduct')])->get()->toArray();
+
+                    $senddata= json_decode(json_encode($allproducts), true);
+                    $sendada=array('products'=> $senddata,'fromcompany'=>$sendcompany->company_uniq_id,"Tocompany"=>$request->get('company_to'));
+                    $k = json_encode($sendada);
+                }elseif ($type=="2") {
+                    $allproducts= DB::table('products')->select('products.*','productcategories.category_name','ou1.uom as orderuomunit','ou1.decsription as orderudesunit','ou1.conversion_factor as orderconunit','ou1.base_uom as orderbaseunit','pu1.uom as purchaseuomunit','pu1.decsription as purchaseudesunit','pu1.conversion_factor as purchaseconunit','pu1.base_uom as purchasebaseunit')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units as ou1', 'products.orderunit', '=', 'ou1.id')->leftJoin('units as pu1', 'products.purchase_unit', '=', 'pu1.id')->where('products.company_id',$userdata['logincompany'])->where('products.protype', $type)->whereIn('products.pro_code', [$request->get('selproduct')])->get()->toArray();
+                    //assemble products
+                    $allassblyproducts= DB::table('products')->select('products.*','productcategories.category_name','ou1.uom as orderuomunit','ou1.decsription as orderudesunit','ou1.conversion_factor as orderconunit','ou1.base_uom as orderbaseunit','pu1.uom as purchaseuomunit','pu1.decsription as purchaseudesunit','pu1.conversion_factor as purchaseconunit','pu1.base_uom as purchasebaseunit','assemblyproducts.assenble_code as assemble_code','assemblyproducts.pro_code as ass_pro_code','assemblyproducts.ass_qty')->leftJoin('assemblyproducts', 'assemblyproducts.pro_code', '=', 'products.pro_code')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->leftJoin('units as ou1', 'products.orderunit', '=', 'ou1.id')->leftJoin('units as pu1', 'products.purchase_unit', '=', 'pu1.id')->whereIn('assemblyproducts.assenble_code', [$request->get('selproduct')])->get()->toArray();
+
+                    $senddata= json_decode(json_encode($allproducts), true);
+                    $sendassembdata= json_decode(json_encode($allassblyproducts), true);
+                    $sendada=array('products'=> $senddata,'assambly'=>$sendassembdata,'fromcompany'=>$sendcompany->company_uniq_id,"Tocompany"=>$request->get('company_to'));
+                    $k = json_encode($sendada);
+                    echo "<pre>";
+                    print_r($k);
+                    die;
+                }
+                $ch = curl_init(); 
+                curl_setopt($ch, CURLOPT_URL,"http://codxretail.online/api/producttransferapi/".$type);
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS,$k);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array( 
+                    'Content-Type: application/json', 
+                    'Content-Length: ' . strlen($k)) 
+                ); 
+                $response = curl_exec($ch);
+                $err = curl_error($ch);
+                curl_close($ch);    
+                if ($err) {
+                    echo "cURL Error #:" . $err;
+                } else {
+                   
+                    $dcjsn=json_decode($response);
+                    Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong>'.$dcjsn->Message.'</div>');
+                    //return redirect('/codxadmin/prodcuttransfer/'.$type);
+
+                }
+            }else{
+                $data['allproducts']=Product::where('company_id',$userdata['logincompany'])->where('protype',$type)->get();
+                $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Please Select Atleast Single Product.</div>';
+                return view('admin.producttransfer',$data);  
+            }
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getProductReceiveFromCloud($type="", Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $data=array();
+            $data['type']=$type;
+            $data['recproduct']= array();
+            $data['selectcomptran']="";
+
+            $data['compnylst']= DB::table('companies as c1')->select('c2.*')->leftjoin("companies as c2",DB::raw("FIND_IN_SET(c2.company_uniq_id,c1.inter_link_company)"),">",DB::raw("'0'"))->where('c1.id',$userdata['logincompany']  )->get();
+            if(empty($type)){
+                return view('admin.selectproductreceivetype',$data);  
+            }else{
+                return view('admin.productrecive',$data);  
+            }
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function saveProductReceiveFromCloud($type="", Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $data=array();
+            $data['type']=$type;
+            $data['recproduct']= array();
+            $data['selectcomptran']=$request->post('company_to');
+            $sendcompany=Company::where('id',$userdata['logincompany'])->select('company_uniq_id')->first();
+            $data['compnylst']= DB::table('companies as c1')->select('c2.*')->leftjoin("companies as c2",DB::raw("FIND_IN_SET(c2.company_uniq_id,c1.inter_link_company)"),">",DB::raw("'0'"))->where('c1.id',$userdata['logincompany']  )->get();
+            if(!empty($type)){
+                $sendada=array('fromcompany'=>$request->post('company_to'),"Tocompany"=>$sendcompany->company_uniq_id);
+                $k = json_encode($sendada);
+                $ch = curl_init(); 
+                curl_setopt($ch, CURLOPT_URL,"http://codxretail.online/api/productreceiveapi/".$type);
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS,$k);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array( 
+                    'Content-Type: application/json', 
+                    'Content-Length: ' . strlen($k)) 
+                ); 
+                $response = curl_exec($ch);
+                $err = curl_error($ch);
+                curl_close($ch);    
+                if ($err) {
+                    echo "cURL Error #:" . $err;
+                } else {
+                   // echo "<pre>";
+                   // print_r($response);
+                   // die;
+                    $dcjsn=json_decode($response);
+                    $data['recproduct']=$dcjsn->productdata;
+                    return view('admin.productcheckrecive',$data);
+
+                }
+            }else{
+                $data['allproducts']=Product::where('company_id',$userdata['logincompany'])->where('protype',$type)->get();
+                $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Please Select Atleast Single Product.</div>';
+                return view('admin.productrecive',$data);  
+            }
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function downloadProductReceiveFromCloud($type, Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $data=array();
+            $data['type']=$type;
+            $data['recproduct']= array();
+            $data['selectcomptran']=$request->post('company_to');
+            $ntran="";
+            $recvdata=array();
+            $sendcompany=Company::where('id',$userdata['logincompany'])->select('company_uniq_id')->first();
+            $data['compnylst']= DB::table('companies as c1')->select('c1.*')->leftjoin("companies as c2",DB::raw("FIND_IN_SET(c2.company_uniq_id,c1.inter_link_company)"),">",DB::raw("'0'"))->where('c1.id',$userdata['logincompany']  )->get();
+            if(!empty($type)){
+                $sendada=array('fromcompany'=>$request->post('company_to'),"Tocompany"=>$sendcompany->company_uniq_id);
+                $k = json_encode($sendada);
+                $ch = curl_init("http://codxretail.online/api/productreceiveapi/".$type); 
+                //curl_setopt($ch, CURLOPT_URL,);
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS,$k);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array( 
+                    'Content-Type: application/json', 
+                    'Content-Length: ' . strlen($k)) 
+                ); 
+                $response = curl_exec($ch);
+                $err = curl_error($ch);
+                   
+                if ($err) {
+                    echo "cURL Error #:" . $err;
+                } else {
+                    $dcjsn=json_decode($response);
+                    $data['recproduct']=$dcjsn->productdata;
+                    $recvdata= json_decode(json_encode($data['recproduct']), true);
+                }
+                // echo "<pre>";
+                // print_r($recvdata);
+                // die;
+                $err=0;
+                foreach ($recvdata as $value) {
+                    $checkexist=Product::select('id')->where('pro_code',$value['pro_code'])->first();
+                    if(!empty($checkexist)){
+                        $prod = Product::find($checkexist->id);
+                    }else{
+                        $prod = new Product;
+                    }
+                    $prod->user_id = $userdata['user_id'];
+                    $prod->company_id = $userdata['logincompany'];
+                    $prod->pro_code = $value['pro_code'];
+                    $prod->user_pro_code = $value['user_pro_code'];
+                    $prod->product_name = $value['product_name'];
+                    $prod->language_product_name = $value['language_product_name'];
+                    $prod->unit_price = $value['unit_price'];
+                    $prod->available_quantity = $value['available_quantity'];
+                    $prod->category = $value['category'];
+                    $prod->orderunit = $value['orderunit'];
+                    $prod->protype = $value['protype'];
+                    $prod->costprice = $value['costprice'];
+                    $prod->barcode = $value['barcode'];
+                    $prod->description = $value['description'];
+                    $prod->purchase_unit = $value['purchase_unit'];
+                    $prod->purchase_descr = $value['purchase_descr'];
+                    $prod->saledisplay = $value['saledisplay'];
+                    $prod->best_selling = $value['best_selling'];
+                    $prod->product_image = $value['product_image'];
+                    if($prod->save()){
+                        $ntran=$ntran.$value['pro_code'].", ";
+                    }else{
+                        
+                        $err=1;
+                    }
+                }
+                
+                if($err=="0"){
+                        rtrim($ntran, ',');
+                        $deletedata=explode(",", $ntran);
+                        $sendada=array('deletedta'=>$deletedata,'fromcompany'=>$sendcompany->company_uniq_id,"Tocompany"=>$request->post('company_to'));
+                        $k = json_encode($sendada);
+                        
+                        curl_setopt($ch, CURLOPT_URL,"http://codxretail.online/api/productdeletereceiveapi/".$type);
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS,$k);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, array( 
+                            'Content-Type: application/json', 
+                            'Content-Length: ' . strlen($k)) 
+                        ); 
+                        $response = curl_exec($ch);
+                        $err11 = curl_error($ch);
+                        $err22 = curl_error($ch);
+                        if ($err11) {
+                            echo "cURL Error #:" . $err11;
+                        }
+                        Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong>'.$ntran.' are Downloaded</div>');
+                       return redirect('/codxadmin/productreceiving/'.$type);
+                        
+                    }else{
+                        rtrim($ntran, ',');
+                        $deletedata=explode(",", $ntran);
+                        $sendada=array('deletedta'=>$deletedata,'fromcompany'=>$sendcompany->company_uniq_id,"Tocompany"=>$request->post('company_to'));
+                        $k = json_encode($sendada);
+                        
+                        curl_setopt($ch, CURLOPT_URL,"http://codxretail.online/api/productdeletereceiveapi/".$type);
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS,$k);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, array( 
+                            'Content-Type: application/json', 
+                            'Content-Length: ' . strlen($k)) 
+                        ); 
+                        $response = curl_exec($ch);
+                        $err22 = curl_error($ch);
+                        curl_close($ch);    
+                        if ($err22) {
+                            echo "cURL Error #:" . $err22;
+                        }
+                        Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong>Some Products are not  Downloaded</div>');
+                        //return redirect('/codxadmin/productreceiving/'.$type);
+
+                    }
+                
+            }
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    
+    //=============== Product Transfer With API(End)
+
+    
+    //================ ProductsGroup
+    public function getAllProductsGroupList(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allproductsgroups']= Productgroup::where('company_id',$userdata['logincompany'])->paginate(10);
+            $data['len']='10';
+            return view('admin.productgrouplist',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function postAllProductsGroupList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+           $data=array();
+           $a=$request->post('len');
+           $userdata=$request->session()->get('userdata');
+           $data['allproductsgroups']= Productgroup::where('company_id',$userdata['logincompany'])->paginate($a);
+           $data['len']=$a;
+           return view('admin.productgrouplist',$data);
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function getAddNewProductGroup(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            return view('admin.productgroupadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveAddNewProductGroup(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            echo "<pre>";
+            print_r( $request->post());
+            die;
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $productdata=Productgroup::where('groupname',$request->post('proname'))->where('company_id',$userdata['logincompany'])->first();
+            if(empty($productdata)){
+            	$prod = new Productgroup;
+                $prod->user_id = $userdata['user_id'];
+                $prod->company_id = $userdata['logincompany'];
+                $prod->groupname = $request->post('proname');
+                $prod->group_desc = $request->post('othproname');
+                $prod->datefrom = $request->post('grpdatefrm');
+                $prod->dateto = $request->post('grpdateto');
+                if($prod->save()){
+                    $lastid= $prod->id;
+                    foreach($request->post('assmb') as $comdata){
+                        $commdata = new Productgroupdetail;
+                        $commdata->company_id = $userdata['logincompany'];
+                        $commdata->group_id = $lastid;
+                        $commdata->product_id = $comdata['item'];
+                        if($commdata->save()){
+                          $temp=0;
+                        }else{
+                          $temp=1;
+                        }
+                    }
+
+                    Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong>Product Group Add Successfully!!! Please Check Detail.</div>');
+                    return redirect('/codxadmin/progroupdetail/'.$lastid);
+                }else{
+                    $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Sorry Please Try Again After Sometimne!!.</div>';
+                }
+            }else{
+            	$data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Product Group Already Exist With This Name!!!.</div>';
+            }
+            $data['prolist']=Product::where('company_id',$userdata['logincompany'])->where('protype','1')->get();
+            return view('admin.productadd',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getProductGroupDetail($id, Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allproductsgroups']= Productgroup::where('company_id',$userdata['logincompany'])->where('id',$id)->first();
+            $data['groudetaildata']= DB::table('productgroupdetails')->select('productgroupdetails.*','products.product_name')->leftJoin('products', 'productgroupdetails.product_id', '=', 'products.pro_code')->where('productgroupdetails.group_id',$id)->get();
+            return view('admin.productgroupetail',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    //================ Promotion
+    public function getAllPromotionList(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allpromotion']= DB::table('products')->select('products.*','productcategories.category_name')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->where('products.company_id',$userdata['logincompany'])->paginate(10);
+            $data['len']='10';
+            return view('admin.promotionlist',$data);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function postAllPromotionList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+           $data=array();
+           $a=$request->post('len');
+           $userdata=$request->session()->get('userdata');
+           $data['allpromotion']= DB::table('products')->select('products.*','productcategories.category_name')->leftJoin('productcategories', 'products.category', '=', 'productcategories.id')->where('products.company_id',$userdata['logincompany'])->paginate($a);
+           $data['len']=$a;
+           return view('admin.promotionlist',$data);
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function getAddPromotion($type="",Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            if(empty($type)){
+            	return view('admin.promotiontype',$data);
+            }elseif (!empty($type)&&$type=="1") {
+            	return view('admin.disonspent',$data);
+            }elseif (!empty($type)&&$type=="2") {
+            	return view('admin.disonfreeprod',$data);
+            }elseif (!empty($type)&&$type=="3") {
+            	return view('admin.disonspent',$data);
+            }elseif (!empty($type)&&$type=="4") {
+            	return view('admin.disonspent',$data);
+            }elseif (!empty($type)&&$type=="5") {
+            	return view('admin.disonspent',$data);
+            }elseif (!empty($type)&&$type=="6") {
+            	return view('admin.disonspent',$data);
+            }
+            
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+
+    //======UOM======//
+    public function addConversionFactor(Request $request){
+        if(!empty($request->session()->get('userdata'))){            
+      		return view('admin.unitconversion');
+      	} 
+      	else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveConversionFactor(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+        	$data=array();
+            $userdata=$request->session()->get('userdata');
+            $unitfac = new Unit;
+            $unitfac->user_id = $userdata['user_id'];
+            $unitfac->company_id = $userdata['logincompany'];
+            $unitfac->uom = $request->post('uom');
+            $unitfac->decsription = $request->post('decsription');
+            $unitfac->conversion_factor = $request->post('conversion_factor');
+            $unitfac->base_uom = $request->post('base_uom');
+            if($unitfac->save()){
+                $data["message"]='<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Conversion Factor added Successfully!!!.</div>';
+            }
+            else{
+                $data["message"]='<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not Save Please Try Again!!!.</div>';
+            }
+            return view('admin.unitconversion',$data);
+        }
+        else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function saveAjaxConversionFactor(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $unitfac = new Unit;
+            $unitfac->user_id = $userdata['user_id'];
+            $unitfac->company_id = $userdata['logincompany'];
+            $unitfac->uom = $request->post('uom');
+            $unitfac->decsription = $request->post('decsription');
+            $unitfac->conversion_factor = $request->post('conversion_factor');
+            $unitfac->base_uom = $request->post('base_uom');
+            if($unitfac->save()){
+                $a=Unit::where('company_id', $userdata['logincompany'])->get();
+                $res=array('status'=>'1','message'=>"Save UOM Successfully",'data'=>$a);
+            }
+            else{
+                $a=array();
+                $res=array('status'=>'0','message'=>"Not save Please Try Again",'data'=>$a);
+            }
+            return json_encode($res);
+        }
+        else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getAllConversionFactor(Request $request){
+    	if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['unitfac']=Unit::where('company_id', $userdata['logincompany'])->paginate(10);
+            $data['len']='10';
+            return view('admin.getunitconversion',$data);
+		}
+		else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function postAllConversionFactor(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+           $data=array();
+           $a=$request->post('len');
+           $userdata=$request->session()->get('userdata');
+           $data['unitfac']=Unit::where('company_id', $userdata['logincompany'])->paginate($a);
+           $data['len']=$a;
+           return view('admin.getunitconversion',$data);
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+    public function deleteConversionFactor($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $unitf=Unit::find($id);
+            if($unitf->delete()){
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Conversion Factor Deleted Successfully!!!.</div>');                         
+            }else{
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not Deleted Please Try Again!!!.</div>');
+            }
+            return redirect('/codxadmin/allconversionfactor');
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function getUnitListByBaseUnit($baseunit,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['unitfac']=Unit::where('company_id', $userdata['logincompany'])->where('base_uom', $baseunit)->get();
+            return json_encode($data['unitfac']);
+        }
+        else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function postPDFConversionFactor(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+           $data=array();
+           $userdata=$request->session()->get('userdata');
+            if($request->post('type')=="1"){
+                $data['unitfac']=Unit::where('company_id', $userdata['logincompany'])->get();
+                $data['pdftitile']="All Conversion factor";
+                $pdf = PDF::loadView('admin.unitconversionpdf',$data);
+                $pdf->autoLangToFont = true;
+                $pdf->allow_charset_conversion=true;  // Set by default to TRUE
+                $pdf->charset_in='UTF-8';
+                return $pdf->download(time().'.pdf');
+            }
+            elseif($request->post('type')=="2"){
+               $purchases=Unit::where('company_id', $userdata['logincompany'])->get();
+               $t[]=array('UOM','Decsription','Conversion Factor','Base UOM');
+                foreach ($purchases as  $value) {
+                    $t[]=array('UOM'=>$value->uom,'Decsription'=>$value->decsription,'Conversion Factor'=>$value->conversion_factor,'Base UOM'=>$value->base_uom);
+                }
+                return Excel::create("All Conversion factor", function($excel) use($t){
+                    $excel->setTitle("All Conversion factor");
+                    $excel->sheet("All Conversion factor",function($sheet) use($t){
+                        $sheet->fromArray($t, null, 'A1',false,false);
+                    });
+                })->download('xlsx');  
+            }
+
+        }else{
+           return redirect('/codxadmin');
+        }
+    }
+
+    //============== Recepi
+    public function getAllRecepiList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->select('recipes.*','productcategories.category_name')->leftJoin('productcategories', 'recipes.category', '=', 'productcategories.id')->where('recipes.company_id',$userdata['logincompany'])->paginate(10);
+            $data['len']=10;
+            return view('admin.getallrecepi',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function postAllRecepiList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->select('recipes.*','productcategories.category_name')->leftJoin('productcategories', 'recipes.category', '=', 'productcategories.id')->where('recipes.company_id',$userdata['logincompany'])->paginate($request->post('len'));
+            $data['len']=$request->post('len');
+            return view('admin.getallrecepi',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function viewrecipe($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('recipes.*', 'units.uom','units.base_uom','productcategories.category_name')->leftjoin('productcategories', 'recipes.category', '=', 'productcategories.id')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.pro_code',$id)->first();
+            $data['recitem']=DB::table('recipeitems')->leftjoin('units', 'recipeitems.uom', '=', 'units.id')->leftjoin('products', 'recipeitems.item', '=', 'products.pro_code')->leftjoin('locations', 'recipeitems.location', '=', 'locations.id')->select('recipeitems.*', 'units.uom as recuom','units.base_uom','products.product_name','locations.location_name')->where('recipeitems.company_id', $userdata['logincompany'])->where('recipeitems.recepi_id',$id)->get();
+            return view('admin.recipeview',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function getAddNewRecipe(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $four=substr($userdata['login_company_name'],0,4); 
+            $document_number=Recipe::select('pro_code')->where('company_id',$userdata['logincompany'])->orderBy('id','desc')->first();
+            if(empty($document_number)){
+                $newdocument_number= 'CDREC'.$four.date('Y').'-'.'1';
+            }
+            else{
+                $lastdocument_number=explode("-", $document_number);
+                $dignewdocument_number=(int)$lastdocument_number[1]+1;
+                $newdocument_number='CDREC'.$four.date('Y').'-'.$dignewdocument_number;
+            }
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            $data['unit']=Unit::where('company_id', $userdata['logincompany'])->get();
+            $data['loc']=Location::where('company_id', $userdata['logincompany'])->get(); 
+            $data['itemlist']=Product::where('company_id', $userdata['logincompany'])->where('protype', '4')->get();
+            $data['semifineshed']=Product::where('company_id', $userdata['logincompany'])->where('protype', '5')->get();
+            $data['code']=$newdocument_number;
+            return view('admin.recipescreen',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function postAddNewRecipe(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $baseuom=Unit::where('company_id', $userdata['logincompany'])->select('base_uom')->where('id',$request->post('recuom'))->first();
+            $prod = new Recipe;
+            $prod->user_id = $userdata['user_id'];
+            $prod->company_id = $userdata['logincompany'];
+            $prod->pro_code = $request->post('codxprocode');
+            $prod->product_name = $request->post('recname');
+            $prod->language_product_name = $request->post('otherrecname');
+            $prod->available_quantity = "1";
+            $prod->category = $request->post('pcate');
+            $prod->orderunit = $request->post('recuom');
+            $prod->costprice = $request->post('recrate');
+            $prod->purchase_unit = $request->post('recuom');
+            $prod->batch_size = $request->post('batchsize');
+            $prod->portion = $request->post('portion');
+            $prod->batch_weight = $request->post('batchweight');
+            $prod->weight_portion = $request->post('weightportion');
+            $prod->weight_portion_price = $request->post('wegporpri');
+            $prod->batch_price = $request->post('batchprice');
+            $prod->per_portion_price = $request->post('wegporpri');
+            $prod->rectype = $request->post('rectypes');
+            if($prod->save()){
+                $lastid=$request->post('codxprocode');
+                foreach($request->post('item') as $itm){
+                    $purchasedtl_ingredients = array('user_id' => $userdata['user_id'],'company_id' => $userdata['logincompany'],'recepi_id' => $lastid,'item' => $itm['itemid'],'quantity' => $itm['qty'],'uom' => $itm['uomid'],'rate' => $itm['rate'],'total_value' => $itm['totalvalue'],'location' => $itm['location']
+                    );
+                    Recipeitem::insert($purchasedtl_ingredients);
+                }
+                if($request->post('rectypes')=="3"){
+                    $four=substr($userdata['login_company_name'],0,4); 
+                    $document_number=Product::select('pro_code')->where('company_id',$userdata['logincompany'])->orderBy('id','desc')->first();
+                    if(empty($document_number)){
+                        $newdocument_number= 'CDPRO'.$four.date('Y').'-'.'1';
+                    }
+                    else{
+                        $lastdocument_number=explode("-", $document_number);
+                        $dignewdocument_number=(int)$lastdocument_number[1]+1;
+                        $newdocument_number='CDPRO'.$four.date('Y').'-'.$dignewdocument_number;
+                    }
+                    $smpro = new Product;
+                    $smpro->user_id = $userdata['user_id'];
+                    $smpro->company_id = $userdata['logincompany'];
+                    $smpro->pro_code = $newdocument_number;
+                    $smpro->product_name = $request->post('recname');
+                    $smpro->language_product_name = $request->post('otherrecname');
+                    $smpro->unit_price = 0;
+                    $smpro->available_quantity = "1";
+                    $smpro->category = $request->post('pcate');
+                    $smpro->orderunit = $request->post('recuom');
+                    $smpro->costprice = $request->post('recrate');
+                    $smpro->purchase_unit = $request->post('recuom');
+                    $smpro->protype = "5";
+                    $smpro->saledisplay = "0";
+                    $smpro->save();
+                }
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Recepi added Successfully!!!.</div>');  
+
+            }
+            else{
+               
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not Save Please Try Again!!!.</div>');
+            }
+            return redirect('/codxadmin/addreceipe');
+            
+        }else{
+            return redirect('/');
+        }
+    }
+    public function getRecipeItemDetails($itmid,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $userdata=$request->session()->get('userdata');
+            $idp =  DB::table('products')->leftjoin('units', 'products.orderunit', '=', 'units.id')->select('products.*', 'units.uom','units.base_uom')->where('products.company_id', $userdata['logincompany'])->where('products.pro_code',$itmid)->first();
+            $res=array('status'=>'1','message'=>"get",'data'=>$idp);
+            return json_encode($res);
+        }else{
+           return redirect('/');
+        }
+    } 
+    public function editRecipById($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['allcategories']=Productcategory::where('company_id',$userdata['logincompany'])->get();
+            $data['unit']=Unit::where('company_id', $userdata['logincompany'])->get();
+            $data['loc']=Location::where('company_id', $userdata['logincompany'])->get(); 
+            $data['itemlist']=Product::where('company_id', $userdata['logincompany'])->where('protype', '4')->get();
+            $data['semifineshed']=Product::where('company_id', $userdata['logincompany'])->where('protype', '5')->get();
+            $data['recplist']=DB::table('recipes')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('recipes.*', 'units.uom','units.base_uom','productcategories.category_name')->leftjoin('productcategories', 'recipes.category', '=', 'productcategories.id')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.pro_code',$id)->first();
+            $data['recitem']=DB::table('recipeitems')->leftjoin('units', 'recipeitems.uom', '=', 'units.id')->leftjoin('products', 'recipeitems.item', '=', 'products.pro_code')->leftjoin('locations', 'recipeitems.location', '=', 'locations.id')->select('recipeitems.*', 'units.uom as recuom','units.base_uom','products.product_name','locations.location_name')->where('recipeitems.company_id', $userdata['logincompany'])->where('recipeitems.recepi_id',$id)->get();
+            return view('admin.editrecipescreen',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function updateRecipById($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $baseuom=Unit::where('company_id', $userdata['logincompany'])->select('base_uom')->where('id',$request->post('recuom'))->first();
+            $prod = Recipe::find($request->post('codxproid'));
+            $prod->user_id = $userdata['user_id'];
+            $prod->company_id = $userdata['logincompany'];
+            $prod->product_name = $request->post('recname');
+            $prod->language_product_name = $request->post('otherrecname');
+            $prod->available_quantity = "1";
+            $prod->costprice = $request->post('recrate');
+            $prod->batch_size = $request->post('batchsize');
+            $prod->portion = $request->post('portion');
+            $prod->batch_weight = $request->post('batchweight');
+            $prod->weight_portion = $request->post('weightportion');
+            $prod->weight_portion_price = $request->post('wegporpri');
+            $prod->batch_price = $request->post('batchprice');
+            $prod->per_portion_price = $request->post('wegporpri');
+            if($prod->save()){
+                $lastid=$id;
+                foreach($request->post('item') as $itm){
+                    $purchasedtl_ingredients = array('user_id' => $userdata['user_id'],'company_id' => $userdata['logincompany'],'recepi_id' => $lastid,'item' => $itm['itemid'],'quantity' => $itm['qty'],'uom' => $itm['uomid'],'rate' => $itm['rate'],'total_value' => $itm['totalvalue'],'location' => $itm['location']
+                    );
+                    Recipeitem::insert($purchasedtl_ingredients);
+                }
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> Recepi Update Successfully!!!.</div>');  
+
+            }
+            else{
+               
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Not Update Please Try Again!!!.</div>');
+            }
+            return redirect('/codxadmin/editrecipe/'.$id);
+            
+        }else{
+            return redirect('/');
+        }
+    }
+    public function deleteReceipeItemFRomRecipe($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $prod=Recipeitem::find($id);
+            if($prod->delete()){
+                 $res=array('status'=>'1','message'=>"Recipe Item Delete Successfully");
+            }else{
+                $res=array('status'=>'0','message'=>"Sorry please Try Agian");  
+            }
+            return json_encode($res);
+        }else{
+            return redirect('/codxadmin');
+        }
+    }
+    public function updateLinkRecipeItem(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            
+            $prod = Product::find($request->post('prid'));
+            $prod->recepi = $request->post('reid');
+            if($prod->save()){
+                $res=array('status'=>'1','message'=>"Recipe Linked Successfully");
+            }else{
+                $res=array('status'=>'0','message'=>"Sorry please Try Agian");  
+            }
+            return json_encode($res);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function PrintReceipeDetailByID($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['companydetail']=Company::where('id',$userdata['logincompany'])->first();
+            $data['recplist']=DB::table('recipes')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('recipes.*', 'units.uom','units.base_uom','productcategories.category_name')->leftjoin('productcategories', 'recipes.category', '=', 'productcategories.id')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.pro_code',$id)->first();
+            $data['recitem']=DB::table('recipeitems')->leftjoin('units', 'recipeitems.uom', '=', 'units.id')->leftjoin('products', 'recipeitems.item', '=', 'products.pro_code')->leftjoin('locations', 'recipeitems.location', '=', 'locations.id')->select('recipeitems.*', 'units.uom as recuom','units.base_uom','products.product_name','locations.location_name')->where('recipeitems.company_id', $userdata['logincompany'])->where('recipeitems.recepi_id',$id)->get();
+            $data['pdftitile']=$id." Receipe Detail:";
+            //$data['daterange']=array();
+            $pdf = PDF::loadView('admin.singlereceipePDF',$data);
+            $pdf->autoLangToFont = true;
+            $pdf->allow_charset_conversion=true;  // Set by default to TRUE
+            $pdf->charset_in='UTF-8';
+            return $pdf->download(time().'.pdf');
+        }else{
+            return redirect('/');
+        }
+    }
+
+    
+                
+    //================ Production
+    public function getAllProductionList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->leftjoin('productions', 'recipes.pro_code', '=', 'productions.recipe_id')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('productions.*', 'recipes.product_name', 'recipes.costprice','units.uom','units.base_uom')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.rectype', '3')->where('productions.production_status','2')->paginate(10);
+            $data['len']=10;
+            return view('admin.getallproduction',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function postAllProductionList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->leftjoin('productions', 'recipes.pro_code', '=', 'productions.recipe_id')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('productions.*', 'recipes.product_name', 'recipes.costprice','units.uom','units.base_uom')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.rectype', '3')->where('productions.production_status','2')->paginate($request->post('len'));
+            $data['len']=$request->post('len');
+            return view('admin.getallproduction',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function viewProduction($id,Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('recipes.*', 'units.uom','units.base_uom')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.rectype', '3')->where('recipes.pro_code',$id)->first();
+            $data['recitem']=DB::table('recipeitems')->leftjoin('units', 'recipeitems.uom', '=', 'units.id')->leftjoin('products', 'recipeitems.item', '=', 'products.pro_code')->leftjoin('locations', 'recipeitems.location', '=', 'locations.id')->select('recipeitems.*', 'units.uom as recuom','units.base_uom','products.product_name','locations.location_name')->where('recipeitems.company_id', $userdata['logincompany'])->where('recipeitems.recepi_id',$id)->get();
+            // echo "<pre>";
+            // print_r($data['recitem']);
+            // die;
+            return view('admin.recipeview',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function getAddNewProduction(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('recipes.*', 'units.uom','units.base_uom')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.rectype', '3')->get();
+            return view('admin.productionscreen',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function postAddNewProduction(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $arecp="";
+            $error=0;
+            foreach ($request->post('pro') as  $value) {
+                $prod = new Production;
+                $prod->user_id = $userdata['user_id'];
+                $prod->company_id = $userdata['logincompany'];
+                $prod->recipe_id = $value['reccode'];
+                $prod->rec_price = $value['rate'];
+                $prod->production_qty = $value['proqty'];
+                $prod->production_value = $value['proval'];
+                $prod->log_date = date('d-m-Y');
+                $prod->production_status = "1";
+                if($prod->save()){
+                    $arecp=$arecp.$value['reccode'].",";
+                }
+                else{
+                   $error=1;
+                }
+            }
+            if($error==1 && !empty($arecp)){
+                rtrim($arecp, ',');
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> '.$arecp.' Production Saved Successfully!!!.</div>');
+            }elseif ($error==0 && !empty($arecp)) {
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> All Production Saved Successfully!!!.</div>');
+            }elseif ($error==0 && empty($arecp)) {
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Sorry Please Try Again!!!</div>');
+            }
+            return redirect('/codxadmin/production');
+            
+        }else{
+            return redirect('/');
+        }
+    }
+    public function getAllSavedProductionList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $data['recplist']=DB::table('recipes')->leftjoin('productions', 'recipes.pro_code', '=', 'productions.recipe_id')->leftjoin('units', 'recipes.orderunit', '=', 'units.id')->select('productions.*', 'recipes.pro_code', 'recipes.product_name', 'recipes.costprice','units.uom','units.base_uom')->where('recipes.company_id', $userdata['logincompany'])->where('recipes.rectype', '3')->where('productions.production_status','1')->get();
+            return view('admin.getallsavedproduction',$data);
+        }else{
+            return redirect('/');
+        }
+    }
+    public function postAllSavedProductionList(Request $request){
+        if(!empty($request->session()->get('userdata'))){
+            $data=array();
+            $userdata=$request->session()->get('userdata');
+            $comuniqid=Company::select('company_uniq_id')->where('id',$userdata['logincompany'])->first();
+            $exid=explode("-", $comuniqid->company_uniq_id);
+            $compid=$exid[2];
+            $document_number=Production::select('batch_no')->where('company_id',$userdata['logincompany'])->where('production_status','2')->orderBy('id','desc')->first();
+            if(empty($document_number)){
+                $newdocument_number='Produc'.$compid.date('dmY').'-'.'1';
+            }
+            else{
+                $lastdocument_number=explode("-", $document_number);
+                $dignewdocument_number=(int)$lastdocument_number[1]+1;
+                $newdocument_number='Produc'.$compid.date('dmY').'-'.$dignewdocument_number;
+            }
+            $arecp="";
+            $error=0;
+            foreach ($request->post('pro') as  $value) {
+                $prod = Production::find($value['proiddd']);
+                $prod->production_qty = $value['proqty'];
+                $prod->production_value = $value['proval'];
+                $prod->production_date = date('d-m-Y');
+                $prod->batch_no = $newdocument_number;
+                $prod->production_status = "2";
+                if($prod->save()){
+                    $arecp=$arecp.$value['reccode'].",";
+                    //Product::where('pro_code',$value['reccode'])->update(array('costprice'=>$ma,'price_lock'=>'1'));
+                }
+                else{
+                   $error=1;
+                }
+            }
+            if($error==1 && !empty($arecp)){
+                rtrim($arecp, ',');
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> '.$arecp.' Production  Successfully!!!.</div>');
+            }elseif ($error==0 && !empty($arecp)) {
+                Session::flash('flashmessage','<div class="alert alert-success alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Success!</strong> All Production  Successfully!!!.</div>');
+            }elseif ($error==0 && empty($arecp)) {
+                Session::flash('flashmessage','<div class="alert alert-danger alert-dismissible fade show"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Error!</strong> Sorry Please Try Again!!!</div>');
+            }
+            return redirect('/codxadmin/production');
+            
+        }else{
+            return redirect('/');
+        }
+    }
+    
+    
+
+    
+
+
+    
+}
